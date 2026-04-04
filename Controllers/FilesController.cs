@@ -14,7 +14,7 @@ namespace KaymazLabs.AzureStorage.Controllers
     {
         private readonly IBlobStorageService _blobStorageService;
         private readonly AppDbContext _context; // Veritabanı motorumuzu (DbContext) buraya tanımlıyoruz
-        //test3
+        //test4
         // Constructor: Hem Azure servisini hem de Veritabanı motorunu içeri alıyoruz (Dependency Injection)
         public FilesController(IBlobStorageService blobStorageService, AppDbContext context)
         {
