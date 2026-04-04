@@ -1,0 +1,12 @@
+# .NET Çöpleri
+bin/
+obj/
+.idea/
+.vs/
+
+.env
+appsettings.json
+appsettings.Development.json
+*.DS_Store
+# Diğer
+*.user
