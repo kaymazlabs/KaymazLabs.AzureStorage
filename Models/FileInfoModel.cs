@@ -4,10 +4,11 @@ namespace KaymazLabs.AzureStorage.Models
 {
     public class FileInfoModel
     {
-        public int Id { get; set; } // Birincil anahtar
-        public string FileName { get; set; } // Orijinal dosya adı
-        public string AzureUrl { get; set; } // Azure'dan gelen link
-        public DateTime UploadDate { get; set; } = DateTime.Now; // Yükleme zamanı
-        public string ContentType { get; set; } // image/png vb.
+        public int Id { get; set; }
+        public string FileName { get; set; } // Orijinal ad: "rapor.pdf"
+        public string StoredFileName { get; set; } // Azure'daki ad: "guid_rapor.pdf"
+        public string AzureUrl { get; set; } // Tam erişim linki: "https://.../guid_rapor.pdf"
+        public string ContentType { get; set; }
+        public DateTime UploadDate { get; set; } = DateTime.Now;
     }
 }

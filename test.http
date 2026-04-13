@@ -1,0 +1,2 @@
+GET http://localhost:5141/api/Files
+X-Api-Key: KaymazLabs-Secret-2026-XQZ

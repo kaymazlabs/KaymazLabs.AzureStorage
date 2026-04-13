@@ -1,0 +1,32 @@
+name: Deploy API to Azure
+
+on:
+  push:
+    branches:
+      - main # Eğer ana dalının adı 'master' ise burayı 'master' olarak değiştir
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu GitHub'dan Al
+        uses: actions/checkout@v4
+
+      - name: .NET Ortamını Kur
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x' # Kendi projende hangi .NET sürümünü (8, 9, 10) kullanıyorsan buraya onu yaz
+
+      - name: Kodu Derle (Build)
+        run: dotnet build --configuration Release
+
+      - name: Yayın Paketi Hazırla (Publish)
+        run: dotnet publish -c Release -o ${{env.DOTNET_ROOT}}/myapp
+
+      - name: Azure'a Fırlat (Deploy)
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'kaymazlabs-api' # Azure'daki uygulamanın adı
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: ${{env.DOTNET_ROOT}}/myapp

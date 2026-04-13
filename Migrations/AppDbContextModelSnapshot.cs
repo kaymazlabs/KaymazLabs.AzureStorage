@@ -42,6 +42,10 @@ namespace KaymazLabs.AzureStorage.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("UploadDate")
                         .HasColumnType("datetime2");
 

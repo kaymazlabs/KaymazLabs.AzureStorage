@@ -5,17 +5,18 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
+using KaymazLabs.AzureStorage.Security;
 
 namespace KaymazLabs.AzureStorage.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [ApiKey]
     public class FilesController : ControllerBase
     {
         private readonly IBlobStorageService _blobStorageService;
-        private readonly AppDbContext _context; // Veritabanı motorumuzu (DbContext) buraya tanımlıyoruz
-        //test4
-        // Constructor: Hem Azure servisini hem de Veritabanı motorunu içeri alıyoruz (Dependency Injection)
+        private readonly AppDbContext _context;
+
         public FilesController(IBlobStorageService blobStorageService, AppDbContext context)
         {
             _blobStorageService = blobStorageService;
@@ -25,36 +26,62 @@ namespace KaymazLabs.AzureStorage.Controllers
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest("Lütfen bir dosya seçin.");
+            if (file == null || file.Length == 0) return BadRequest("Dosya seçilmedi.");
 
-            // 1. Dosyayı Azure'a gönder ve açık URL'yi al
-            var fileUrl = await _blobStorageService.UploadFileAsync(file, "kaymazlabs-uploads");
+            // Servisten iki bilgiyi de alıyoruz (tuple yakalama)
+            var (uri, uniqueName) = await _blobStorageService.UploadFileAsync(file, "kaymazlabs-uploads");
 
-            // 2. Veritabanına kaydedilecek "Kayıt Defteri" modelini oluştur
             var fileRecord = new FileInfoModel
             {
-                FileName = file.FileName,
-                AzureUrl = fileUrl,
+                FileName = file.FileName,       // Orijinal ad (İndirirken lazım)
+                StoredFileName = uniqueName,    // Azure adı (Silme/İndirme işlemlerinde lazım)
+                AzureUrl = uri,                 // Tam link (Frontend'de göstermek için lazım)
                 ContentType = file.ContentType
-                // UploadDate yazmamıza gerek yok, modelde otomatik olarak şu anki zaman atanıyor
             };
 
-            // 3. Oluşturduğumuz bu kaydı veritabanı tablomuza ekle ve kalıcı olarak kaydet
             _context.Files.Add(fileRecord);
             await _context.SaveChangesAsync();
 
-            // 4. Kullanıcıya başarı mesajıyla birlikte veritabanı kaydını geri dön
-            return Ok(new { Message = "Dosya Azure'a yüklendi ve veritabanına kaydedildi!", Data = fileRecord });
+            return Ok(fileRecord);
         }
 
-        // YENİ ÖZELLİK: Tüm dosyaları listeleme metodu
         [HttpGet]
         public async Task<IActionResult> GetAllFiles()
         {
-            // Veritabanındaki Files tablosuna git, içindeki her şeyi bir Liste (Array) olarak getir
-            var files = await _context.Files.ToListAsync();
-            return Ok(files);
+            return Ok(await _context.Files.ToListAsync());
+        }
+
+        // --- YENİ: DOSYA İNDİRME METODU ---
+        [HttpGet("download/{id}")]
+        public async Task<IActionResult> DownloadFile(int id)
+        {
+            // 1. Veritabanından kaydı bul
+            var fileRecord = await _context.Files.FindAsync(id);
+            if (fileRecord == null) return NotFound("Dosya kaydı bulunamadı.");
+
+            // KRİTİK DÜZELTME: AzureUrl yerine StoredFileName gönderiyoruz
+            var fileStream = await _blobStorageService.DownloadFileAsync(fileRecord.StoredFileName, "kaymazlabs-uploads");
+
+            if (fileStream == null) return NotFound("Dosya Azure üzerinde fiziksel olarak bulunamadı.");
+
+            // 3. Dosyayı kullanıcıya orijinal ismiyle (FileName) teslim et
+            return File(fileStream, fileRecord.ContentType, fileRecord.FileName);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteFile(int id)
+        {
+            var fileRecord = await _context.Files.FindAsync(id);
+            if (fileRecord == null) return NotFound();
+
+            // 1. Önce Azure'dan fiziksel dosyayı siliyoruz
+            await _blobStorageService.DeleteFileAsync(fileRecord.StoredFileName, "kaymazlabs-uploads");
+    
+            // 2. Sonra veritabanı kaydını siliyoruz
+            _context.Files.Remove(fileRecord);
+            await _context.SaveChangesAsync();
+
+            return Ok("Dosya hem Azure'dan hem de veritabanından tamamen silindi.");
         }
     }
 }

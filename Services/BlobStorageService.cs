@@ -8,7 +8,10 @@ namespace KaymazLabs.AzureStorage.Services
 {
     public interface IBlobStorageService
     {
-        Task<string> UploadFileAsync(IFormFile file, string containerName);
+        Task<(string uri, string uniqueName)> UploadFileAsync(IFormFile file, string containerName);
+        // Yeni eklenen satır:
+        Task<Stream> DownloadFileAsync(string fileName, string containerName);
+        Task<bool> DeleteFileAsync(string fileName, string containerName);
     }
 
     public class BlobStorageService : IBlobStorageService
@@ -27,7 +30,7 @@ namespace KaymazLabs.AzureStorage.Services
             }
         }
 
-        public async Task<string> UploadFileAsync(IFormFile file, string containerName)
+        public async Task<(string uri, string uniqueName)> UploadFileAsync(IFormFile file, string containerName)
         {
             var blobServiceClient = new BlobServiceClient(_connectionString);
             var blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
@@ -38,15 +41,36 @@ namespace KaymazLabs.AzureStorage.Services
 
             using (var stream = file.OpenReadStream())
             {
-                var options = new BlobUploadOptions
-                {
+                await blobClient.UploadAsync(stream, new BlobUploadOptions {
                     HttpHeaders = new BlobHttpHeaders { ContentType = file.ContentType }
-                };
-
-                await blobClient.UploadAsync(stream, options);
+                });
             }
 
-            return blobClient.Uri.ToString();
+            // Hem linki hem de unique ismi paketleyip geri gönderiyoruz
+            return (blobClient.Uri.ToString(), uniqueFileName);
         }
+        public async Task<Stream> DownloadFileAsync(string fileName, string containerName)
+        {
+            var blobServiceClient = new BlobServiceClient(_connectionString);
+            var blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
+            var blobClient = blobContainerClient.GetBlobClient(fileName);
+
+            if (await blobClient.ExistsAsync())
+            {
+                // Dosyayı sunucuya indirmeden, doğrudan kullanıcıya akıtıyoruz (Stream)
+                return await blobClient.OpenReadAsync();
+            }
+
+            return null;
+        }
+        public async Task<bool> DeleteFileAsync(string fileName, string containerName)
+        {
+            var blobServiceClient = new BlobServiceClient(_connectionString);
+            var blobContainerClient = blobServiceClient.GetBlobContainerClient(containerName);
+            var blobClient = blobContainerClient.GetBlobClient(fileName);
+
+            return await blobClient.DeleteIfExistsAsync();
+        }
+        
     }
 }
