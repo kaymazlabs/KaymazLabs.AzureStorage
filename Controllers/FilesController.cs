@@ -83,5 +83,15 @@ namespace KaymazLabs.AzureStorage.Controllers
 
             return Ok("Dosya hem Azure'dan hem de veritabanından tamamen silindi.");
         }
+        [HttpGet("test-cicd")]
+        public IActionResult TestCiCd()
+        {
+            return Ok(new 
+            { 
+                Durum = "Başarılı", 
+                Mesaj = "🚀 GitHub Actions Otomasyonu Çalışıyor!", 
+                SunucuSaati = System.DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss")
+            });
+        }
     }
 }
